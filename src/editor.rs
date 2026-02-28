@@ -1,81 +1,96 @@
 use crate::{ansi, buffer::Buffer};
+use std::io::{self, BufRead, BufReader};
 
 pub(crate) struct Editor {
-    cursor_row: usize,
-    cursor_col: usize,
-    buffer: Buffer,
+    cur_row: usize,
+    cur_col: usize,
+    buf: Buffer,
 }
 
 impl Editor {
     pub(crate) fn new() -> Self {
         Self {
-            cursor_row: 0,
-            cursor_col: 0,
-            buffer: Buffer::empty(),
+            cur_row: 0,
+            cur_col: 0,
+            buf: Buffer::empty(),
         }
+    }
+
+    pub(crate) fn read_buffer(&mut self, rdr: impl io::Read) -> io::Result<()> {
+        let buf_rdr = BufReader::new(rdr);
+        let mut lines = Vec::new();
+
+        for ln in buf_rdr.lines() {
+            let ln = ln?;
+            lines.push(ln);
+        }
+
+        let buffer = Buffer::from_lines(lines);
+        self.buf = buffer;
+
+        Ok(())
+    }
+
+    pub(crate) fn write_buffer(&self, mut wrt: impl io::Write) -> io::Result<()> {
+        for (_, ln) in self.buf.lines() {
+            writeln!(wrt, "{}", ln)?;
+        }
+        Ok(())
     }
 
     pub(crate) fn render(&self) {
         print!("{}", ansi::CLEAR_SCREEN);
-        for (i, ln) in self.buffer.lines() {
+        for (i, ln) in self.buf.lines() {
             print!("{}{}", ansi::move_to(i, 0), ln);
         }
-        print!("{}", ansi::move_to(self.cursor_row, self.cursor_col));
+        print!("{}", ansi::move_to(self.cur_row, self.cur_col));
     }
 
     pub(crate) fn insert_char(&mut self, ch: char) {
-        self.buffer
-            .insert_char(ch, self.cursor_row, self.cursor_col);
-        self.cursor_col += 1;
+        self.buf.insert_char(ch, self.cur_row, self.cur_col);
+        self.cur_col += 1;
     }
 
     pub(crate) fn remove_char(&mut self) {
-        if self.cursor_col > 0 {
-            self.buffer.remove_char(self.cursor_row, self.cursor_col);
-            self.cursor_col = self.cursor_col.saturating_sub(1);
-        } else if self.cursor_row > 0 {
+        if self.cur_col > 0 {
+            self.buf.remove_char(self.cur_row, self.cur_col);
+            self.cur_col = self.cur_col.saturating_sub(1);
+        } else if self.cur_row > 0 {
             // col == 0, row > 0
             // lines will be joined, save current row column count
-            let join_line_cols = self.buffer.cols_in_row(self.cursor_row);
-            self.buffer.remove_char(self.cursor_row, self.cursor_col);
+            let join_line_cols = self.buf.cols_in_row(self.cur_row);
+            self.buf.remove_char(self.cur_row, self.cur_col);
 
-            self.cursor_row = self.cursor_row.saturating_sub(1);
-            self.cursor_col = self.buffer.cols_in_row(self.cursor_row) - join_line_cols;
+            self.cur_row = self.cur_row.saturating_sub(1);
+            self.cur_col = self.buf.cols_in_row(self.cur_row) - join_line_cols;
         }
     }
 
     pub(crate) fn break_line(&mut self) {
-        self.buffer.break_line(self.cursor_row, self.cursor_col);
-        self.cursor_row += 1;
-        self.cursor_col = 0;
+        self.buf.break_line(self.cur_row, self.cur_col);
+        self.cur_row += 1;
+        self.cur_col = 0;
     }
 
     pub(crate) fn move_cursor_up(&mut self) {
-        self.cursor_row = self.cursor_row.saturating_sub(1);
-        self.cursor_col = self
-            .cursor_col
-            .min(self.buffer.cols_in_row(self.cursor_row))
+        self.cur_row = self.cur_row.saturating_sub(1);
+        self.cur_col = self.cur_col.min(self.buf.cols_in_row(self.cur_row))
     }
 
     pub(crate) fn move_cursor_down(&mut self) {
-        self.cursor_row = self
-            .cursor_row
-            .saturating_add(1)
-            .min(self.buffer.rows() - 1);
+        self.cur_row = self.cur_row.saturating_add(1).min(self.buf.rows() - 1);
 
-        self.cursor_col = self
-            .cursor_col
-            .min(self.buffer.cols_in_row(self.cursor_row))
+        self.cur_col = self.cur_col.min(self.buf.cols_in_row(self.cur_row))
     }
 
     pub(crate) fn move_cursor_left(&mut self) {
-        self.cursor_col = self.cursor_col.saturating_sub(1);
+        self.cur_col = self.cur_col.saturating_sub(1);
     }
 
     pub(crate) fn move_cursor_right(&mut self) {
-        self.cursor_col = self
-            .cursor_col
+        self.cur_col = self
+            .cur_col
             .saturating_add(1)
-            .min(self.buffer.cols_in_row(self.cursor_row));
+            .min(self.buf.cols_in_row(self.cur_row));
     }
 }

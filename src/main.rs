@@ -5,7 +5,19 @@ mod key;
 mod raw_mode;
 
 use crate::{editor::Editor, key::Key, raw_mode::RawMode};
-use std::io::{self, Write};
+use clap::Parser;
+use std::{
+    fs::File,
+    io::{self, Write},
+    path::PathBuf,
+};
+
+#[derive(Parser)]
+#[command(about = "A simple terminal text editor")]
+struct Args {
+    /// File to open
+    file: Option<PathBuf>,
+}
 
 fn clear_screen() -> io::Result<()> {
     print!("{}{}", ansi::CLEAR_SCREEN, ansi::move_to(0, 0));
@@ -24,14 +36,29 @@ fn to_caret_notation(buf: &[u8]) -> String {
 }
 
 fn main() -> io::Result<()> {
+    let args = Args::parse();
     let _rm = RawMode::new();
     clear_screen()?;
 
     let mut editor = Editor::new();
 
+    if let Some(path) = &args.file {
+        let file = File::open(&path)?;
+        editor.read_buffer(file)?;
+    }
+
+    editor.render();
+    io::stdout().flush()?;
+
     loop {
         match Key::read()? {
             Key::Ctrl('c') | Key::Escape => break,
+            Key::Ctrl('s') => {
+                if let Some(path) = &args.file {
+                    let mut file = File::create(&path)?;
+                    editor.write_buffer(&mut file)?;
+                }
+            }
             Key::Char(c) => editor.insert_char(c),
             Key::Enter => editor.break_line(),
             Key::Backspace => editor.remove_char(),

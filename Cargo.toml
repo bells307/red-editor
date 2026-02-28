@@ -9,3 +9,4 @@ edition = "2024"
 
 [dependencies]
 libc = "0.2.182"
+clap = { version = "4", features = ["derive"] }

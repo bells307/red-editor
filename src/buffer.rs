@@ -1,5 +1,3 @@
-use crate::ansi;
-
 pub(crate) struct Buffer {
     lines: Vec<String>,
 }
@@ -7,7 +5,16 @@ pub(crate) struct Buffer {
 impl Buffer {
     pub(crate) fn empty() -> Self {
         Self {
+            // there must be at least one line
             lines: vec![String::new()],
+        }
+    }
+
+    pub(crate) fn from_lines(lines: Vec<String>) -> Self {
+        if lines.is_empty() {
+            Self::empty()
+        } else {
+            Self { lines }
         }
     }
 
