@@ -2,7 +2,7 @@ use std::io::{self, Read};
 
 type KeyBuffer = [u8; 4];
 
-pub(crate) enum Key {
+pub enum Key {
     Char(char),
     Ctrl(char),
     ArrowUp,
@@ -12,12 +12,14 @@ pub(crate) enum Key {
     Enter,
     Backspace,
     Escape,
+    Tab,
+    ShiftTab,
     Unknown(KeyBuffer),
 }
 
 impl Key {
     /// Waits next key from user input
-    pub(crate) fn read() -> io::Result<Self> {
+    pub fn read() -> io::Result<Self> {
         let mut buf = [0; 4];
         io::stdin().read(&mut buf)?;
 
@@ -28,8 +30,10 @@ impl Key {
                 b"[B" => Key::ArrowDown,
                 b"[C" => Key::ArrowRight,
                 b"[D" => Key::ArrowLeft,
+                b"[Z" => Key::ShiftTab,
                 _ => Key::Unknown(buf),
             },
+            0x09 => Key::Tab,
             0x0d => Key::Enter,
             0x7f => Key::Backspace,
             b if b < 0x20 => Key::Ctrl((b + b'a' - 1) as char),

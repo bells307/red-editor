@@ -3,10 +3,10 @@ use libc::{
     tcgetattr, tcsetattr, termios,
 };
 
-pub(crate) struct RawMode(termios);
+pub struct RawMode(termios);
 
 impl RawMode {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         let mut termios = unsafe { std::mem::zeroed::<termios>() };
         unsafe { tcgetattr(STDIN_FILENO, &mut termios) };
         // save current term state
