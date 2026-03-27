@@ -25,6 +25,12 @@ impl RawMode {
     }
 }
 
+impl Default for RawMode {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Drop for RawMode {
     fn drop(&mut self) {
         // restore term state
